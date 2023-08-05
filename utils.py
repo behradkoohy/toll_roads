@@ -15,6 +15,8 @@ def volume_delay_function(a, b, c, t0, v):
     """
     a = 0.15
     b = 4
+    # c = 30
+    # t0 = 30
 
     return t0 * (1 + (a * pow((v / c), b)))
 
