@@ -6,7 +6,7 @@ import numpy as np
 
 
 class DQNWrapper:
-    def __new__(self, obs_size, n_epochs, timesteps, n_buf=50000, *args, **kwargs):
+    def __new__(self, obs_size, n_epochs, timesteps, sim, n_buf=50000, *args, **kwargs):
         print("obs size", obs_size)
         self.model = nn.Sequential(
             # nn.Conv2d(obs_size, 64, kernel_size=(2, 2)),
@@ -34,19 +34,23 @@ class DQNWrapper:
         # self.replay_buffer = replay_buffers.ReplayBuffer(n_buf)
         betasteps = timesteps / 50
         replay_size = int(timesteps * n_epochs * 0.9)
+        replay_alpha0 = 0.6
+        replay_beta0 = 0.4
         self.replay_buffer = replay_buffers.PrioritizedReplayBuffer(
             # n_buf, alpha=0.6, beta0=0.4, betasteps=betasteps, num_steps=1
             replay_size,
-            alpha=0.6,
-            beta0=0.4,
+            alpha=replay_alpha0,
+            beta0=replay_beta0,
             betasteps=betasteps,
             num_steps=1,
         )
 
         decay_timestep = int(timesteps * n_epochs * 0.9)
+        explr_start = 1.0
+        explr_end = 0.01
         self.explorer = explorers.LinearDecayEpsilonGreedy(
-            1.0,
-            0.01,
+            explr_start,
+            explr_end,
             # 0.99,
             decay_timestep,
             lambda: np.random.randint(3),
@@ -55,6 +59,17 @@ class DQNWrapper:
             # 1000000,
             # lambda: np.random.randint(3),
         )
+        sim.manifestmaker.write_model_manifest({
+            'model_arch': [str(m) for m in self.model],
+            # 'model_params': self.model.parameters(),
+            'replay_size': replay_size,
+            'replay_alpha0': replay_alpha0,
+            'replay_beta0': replay_beta0,
+            'replay_beta_steps': betasteps,
+            'explorer_decay_end': decay_timestep,
+            'explorer_start': explr_start,
+            'explorer_end': explr_end
+        })
 
         print("replay size:", replay_size, ", decay timestep:", decay_timestep)
         return DoubleDQN(

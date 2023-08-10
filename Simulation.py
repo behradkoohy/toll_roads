@@ -14,7 +14,7 @@ from Car import Car
 from Road import TollRoad, FreeRoad
 from utils import agent_probability_function
 from MapClasses import Origin, Destination
-from Logger import Logging
+from Logger import Logging, ManifestMaker
 from numpy.random import lognormal, normal, randint, beta
 from numpy import linspace
 from functools import partial
@@ -49,7 +49,7 @@ class Simulation:
         n_origins=2,
         n_destinations=2,
         n_epochs=2,
-        log_dir=""
+        log_dir="",
     ):
         self.n_cars = n_cars
         self.n_free_road = n_free_road
@@ -58,9 +58,14 @@ class Simulation:
         self.toll_roads = []
         self.timesteps = n_timesteps
         self.log_dir = log_dir
-        self.log = Logging(db_file=log_dir+"logging.db")
+        self.log = Logging(db_file=log_dir + "logging.db")
+        self.manifestmaker = ManifestMaker(log_dir)
+
         # self.car_dist_arrival = [round(x) for x in linspace(0, n_timesteps, n_cars)]
-        self.car_dist_norm = beta(5, 5, size=self.n_cars)
+        beta_dist_alpha = 5
+        beta_dist_beta = 5
+
+        self.car_dist_norm = beta(beta_dist_alpha, beta_dist_beta, size=self.n_cars)
         self.car_dist_arrival = list(
             map(
                 lambda z: round(
@@ -86,12 +91,28 @@ class Simulation:
             road = FreeRoad(self)
             self.free_roads.append(road)
 
+        self.manifestmaker.create_model_manifest()
+
         for road in self.toll_roads:
             road.set_obs_space()
             obs_size = len(road.obs_fact.get_lows())
-            self.agents[road] = DQNWrapper(obs_size, n_epochs, n_timesteps)
+            self.agents[road] = DQNWrapper(obs_size, n_epochs, n_timesteps, self)
 
         self.log.set_titles(self.toll_roads[0].obs_fact.get_titles())
+
+        self.manifestmaker.write_simulation_manifest({
+            "n_cars" : self.n_cars,
+            "n_timesteps": self.timesteps,
+            "n_free_roads": self.n_free_road,
+            "n_toll_roads": self.n_toll_road,
+            "n_origins": n_origins,
+            "n_destinations": n_destinations,
+            "n_epochs": n_epochs,
+            "beta_dist_alpha": beta_dist_alpha,
+            "beta_dist_beta": beta_dist_beta,
+            "obs_size": len(road.obs_fact.get_titles()),
+            "obs_titles": road.obs_fact.get_titles()
+        })
 
         for self.epoch in trange(n_epochs, unit="epochs"):
             self.build_environment(n_origins, n_destinations)
@@ -410,13 +431,13 @@ class Simulation:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(prog="MMRP Simulation")
-    ap.add_argument('-C', '--cars', default=None, action="store", type=int)
-    ap.add_argument('-T', '--timesteps', default=None, action="store", type=int)
-    ap.add_argument('-E', '--epochs', default=None, action="store", type=int)
-    ap.add_argument('-TR', '--tollroads', default=2, action="store", type=int)
-    ap.add_argument('-FR', '--freeroads', default=1, action="store", type=int)
-    ap.add_argument('-L', '--logdir', default=None, action="store", type=str)
-    a = (ap.parse_args())
+    ap.add_argument("-C", "--cars", default=None, action="store", type=int)
+    ap.add_argument("-T", "--timesteps", default=None, action="store", type=int)
+    ap.add_argument("-E", "--epochs", default=None, action="store", type=int)
+    ap.add_argument("-TR", "--tollroads", default=2, action="store", type=int)
+    ap.add_argument("-FR", "--freeroads", default=1, action="store", type=int)
+    ap.add_argument("-L", "--logdir", default=None, action="store", type=str)
+    a = ap.parse_args()
     print(a)
     # # for x in range(10):
     # cars = 300
@@ -424,6 +445,13 @@ if __name__ == "__main__":
     # epochs = 100
     # print("Number of training timesteps", timesteps * epochs)
     # s = Simulation(cars, timesteps, n_epochs=epochs)
-    s = Simulation(a.cars, a.timesteps, n_epochs=a.epochs, n_toll_roads=a.tollroads, n_free_road=a.freeroads, log_dir=a.logdir)
+    s = Simulation(
+        a.cars,
+        a.timesteps,
+        n_epochs=a.epochs,
+        n_toll_roads=a.tollroads,
+        n_free_road=a.freeroads,
+        log_dir=a.logdir,
+    )
     # s.log.conn.commit()
     # # s.log.pretty_graphs()
