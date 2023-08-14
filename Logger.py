@@ -77,6 +77,7 @@ class Logging:
             """,
             (id, epoch, ts_in, ts_out, route, veh_vot),
         )
+        self.conn.commit()
 
     def removing_half_complete_run(self, epoch):
         self.cursor.execute("DELETE FROM results WHERE EPOCH=?", (epoch,))

@@ -29,7 +29,7 @@ def main():
     for exp_dir in exp_dirs:
         conn = open_logging_db(exp_dir)
         cur = conn.cursor()
-        cur.execute("SELECT TS_IN, TS_OUT FROM eval")
+        cur.execute("SELECT TS_IN, TS_OUT FROM eval;")
         dbout = cur.fetchall()
 
         for row in dbout:
