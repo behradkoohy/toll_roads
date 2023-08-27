@@ -9,7 +9,7 @@ experiment_dir="experiment_${date_str}"
 mkdir /scratch/bk2g18/${experiment_dir}
 
 # Create N folders inside the experiment directory
-for i in $(seq 0 ${N})
+for i in $(seq 20 ${N})
 do
   folder_name="exp_${i}"
   mkdir "/scratch/bk2g18/${experiment_dir}/${folder_name}"
