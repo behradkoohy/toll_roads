@@ -12,6 +12,7 @@ from pfrl.q_functions import DiscreteActionValueHead
 
 from Car import Car
 from Road import TollRoad, FreeRoad
+from agent_config import agent_configs
 from utils import agent_probability_function
 from MapClasses import Origin, Destination
 from Logger import Logging, ManifestMaker
@@ -50,6 +51,7 @@ class Simulation:
         n_destinations=2,
         n_epochs=2,
         log_dir="",
+        agent="",
     ):
         self.n_cars = n_cars
         self.n_free_road = n_free_road
@@ -60,6 +62,7 @@ class Simulation:
         self.log_dir = log_dir
         self.log = Logging(db_file=log_dir + "logging.db")
         self.manifestmaker = ManifestMaker(log_dir)
+        self.agent_inp = agent
 
         # self.car_dist_arrival = [round(x) for x in linspace(0, n_timesteps, n_cars)]
         beta_dist_alpha = 5
@@ -96,7 +99,7 @@ class Simulation:
         for road in self.toll_roads:
             road.set_obs_space()
             obs_size = len(road.obs_fact.get_lows())
-            self.agents[road] = DQNWrapper(obs_size, n_epochs, n_timesteps, self)
+            self.agents[road] = agent_configs[agent]['agent'](obs_size, n_epochs, n_timesteps, self)
 
         self.log.set_titles(self.toll_roads[0].obs_fact.get_titles())
 
@@ -117,6 +120,7 @@ class Simulation:
         for self.epoch in trange(n_epochs, unit="epochs"):
             self.build_environment(n_origins, n_destinations)
             self.start_sim()
+        self.log.end()
 
     def build_environment(self, n_origins, n_destinations):
         # random.seed(1)
@@ -292,28 +296,15 @@ class Simulation:
             cycle_information = {}
             self.current_timestep = t
             for n, road in enumerate(self.toll_roads):
-                # TODO: Something
                 # self.road_time_costs = {r.get_road_travel_time(): r for r in (self.toll_roads + self.free_roads)}
                 obs = road.get_obs()
-                act_change = (
-                    self.agents[road].act(from_numpy(obs).type(torch.float32)) - 1
-                )
 
-                # Calculate the new price of the road
-                act_funct = {
-                    -1: lambda x: x - threshold,
-                    0: lambda x: x,
-                    1: lambda x: x + threshold,
-                }
-                if act_funct[act_change](econ_cost[n]) < threshold:
-                    act = act_funct[0](econ_cost[n])
-                else:
-                    act = act_funct[act_change](econ_cost[n])
+                act = self.agents[road].model.act(from_numpy(obs).type(torch.float32))
 
-                # NOTE: Should we move all this to the road, and do the calculation there?
-                # NOTE: I wonder if passing act as the new price rather than the actual action
-                # NOTE: (continued) has a negative impact on the model's ability to learn
-                cycle_information[n, "act"] = act_change
+                if act < threshold:
+                    act = (econ_cost[n])
+
+                cycle_information[n, "act"] = act
                 cycle_information[n, "pri"] = econ_cost[n]
 
                 obs, reward, done = road.step(act)
@@ -324,26 +315,10 @@ class Simulation:
 
                 total_reward[road] += reward
                 self.agents[road].observe(
-                    obs, reward, t == self.timesteps + 2, t == self.timesteps + 2
+                    self.agents[road], obs, reward, t == self.timesteps + 2, t == self.timesteps + 2
                 )
 
-                if act_change not in [-1, 0, 1]:
-                    print("ding one", act_change)
-                # NOTE: uncomment line below if NaN value error occurs
-                # print(obs, reward, t == self.timesteps + 2, t == self.timesteps + 2, type(reward))
-                # breakpoint()
 
-                # print(reward)
-                if cycle_information[n, "act"] not in [-1, 0, 1]:
-                    # breakpoint()
-                    print("ding two", cycle_information[n, "rew"])
-                    pass
-                # print("previous round reward:", reward)
-                # NOTE: fix price here
-                # if n == 0:
-                #     self.set_toll_road_price(road, 5)
-                # else:
-                #     self.set_toll_road_price(road, act)
                 self.set_toll_road_price(road, act)
 
             # add arrived vehicles at this timestep
@@ -373,7 +348,7 @@ class Simulation:
                 )
 
             road_adj_tcur = {}
-
+            comp_vehicles = []
             while len(self.arrived_vehicles) > 0:
                 car = self.arrived_vehicles[0]
                 vehicle_specific_route_costs = [
@@ -406,14 +381,15 @@ class Simulation:
                     + 1
                 )
                 self.arrived_vehicles.remove(car)
-                self.log.add_new_completed_vehicle(
-                    hash(car),
+                comp_vehicles.append(
+                    (hash(car),
                     self.epoch,
                     self.current_timestep,
                     round(self.current_timestep + decision[1]),
                     str((decision[0], decision[2].t0)),
-                    car.vot,
+                    car.vot,)
                 )
+            self.log.batch_add_new_completed_vehicle(comp_vehicles)
 
             for r in self.toll_roads + self.free_roads:
                 self.new_vehicles[r] = road_adj_tcur.get(r, 0)
@@ -431,12 +407,13 @@ class Simulation:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(prog="MMRP Simulation")
-    ap.add_argument("-C", "--cars", default=None, action="store", type=int)
-    ap.add_argument("-T", "--timesteps", default=None, action="store", type=int)
-    ap.add_argument("-E", "--epochs", default=None, action="store", type=int)
+    ap.add_argument("-C", "--cars", default=300, action="store", type=int)
+    ap.add_argument("-T", "--timesteps", default=200, action="store", type=int)
+    ap.add_argument("-E", "--epochs", default=100, action="store", type=int)
     ap.add_argument("-TR", "--tollroads", default=2, action="store", type=int)
     ap.add_argument("-FR", "--freeroads", default=1, action="store", type=int)
-    ap.add_argument("-L", "--logdir", default=None, action="store", type=str)
+    ap.add_argument("-L", "--logdir", default="./", action="store", type=str)
+    ap.add_argument("-A", "--agent", default="DQN", choices=[agent for agent in agent_configs] , type=str)
     a = ap.parse_args()
     print(a)
     # # for x in range(10):
@@ -452,6 +429,7 @@ if __name__ == "__main__":
         n_toll_roads=a.tollroads,
         n_free_road=a.freeroads,
         log_dir=a.logdir,
+        agent=a.agent
     )
     # s.log.conn.commit()
     # # s.log.pretty_graphs()

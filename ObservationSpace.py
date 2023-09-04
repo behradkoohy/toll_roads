@@ -79,22 +79,22 @@ class ObservationSpace:
                 ],
                 "title": ["Number of Vehicles Remaining"],
             },
-            {
-                "low": [0],
-                "high": [1],
-                "funct": lambda: [
-                    self.simulation.gym_get_same_destination(self.road.destination)
-                ],
-                "title": ["Cars with same destination as this road"],
-            },
-            {
-                "low": [0],
-                "high": [1],
-                "funct": lambda: [
-                    self.simulation.gym_get_diff_destination(self.road.destination)
-                ],
-                "title": ["Cars with same destination as this road"],
-            },
+            # {
+            #     "low": [0],
+            #     "high": [1],
+            #     "funct": lambda: [
+            #         self.simulation.gym_get_same_destination(self.road.destination)
+            #     ],
+            #     "title": ["Cars with same destination as this road"],
+            # },
+            # {
+            #     "low": [0],
+            #     "high": [1],
+            #     "funct": lambda: [
+            #         self.simulation.gym_get_diff_destination(self.road.destination)
+            #     ],
+            #     "title": ["Cars with same destination as this road"],
+            # },
             {
                 "low": [
                     0 for _ in (self.simulation.toll_roads + self.simulation.free_roads)

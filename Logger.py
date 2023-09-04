@@ -77,7 +77,18 @@ class Logging:
             """,
             (id, epoch, ts_in, ts_out, route, veh_vot),
         )
-        self.conn.commit()
+        # self.conn.commit()
+
+    def batch_add_new_completed_vehicle(self, cars):
+        self.cursor.executemany(
+            """ INSERT INTO eval
+            (ID, EPOCH, TS_IN, TS_OUT, ROUTE, VEH_VOT)
+            VALUES 
+            (?,?,?,?,?,?)
+            """,
+            cars,
+        )
+        # self.conn.commit()
 
     def removing_half_complete_run(self, epoch):
         self.cursor.execute("DELETE FROM results WHERE EPOCH=?", (epoch,))
@@ -88,6 +99,9 @@ class Logging:
 
     def main(self):
         pass
+
+    def end(self):
+        self.conn.commit()
 
 
 class PrettyGraphs:
