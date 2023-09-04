@@ -99,23 +99,27 @@ class Simulation:
         for road in self.toll_roads:
             road.set_obs_space()
             obs_size = len(road.obs_fact.get_lows())
-            self.agents[road] = agent_configs[agent]['agent'](obs_size, n_epochs, n_timesteps, self)
+            self.agents[road] = agent_configs[agent]["agent"](
+                obs_size, n_epochs, n_timesteps, self
+            )
 
         self.log.set_titles(self.toll_roads[0].obs_fact.get_titles())
 
-        self.manifestmaker.write_simulation_manifest({
-            "n_cars" : self.n_cars,
-            "n_timesteps": self.timesteps,
-            "n_free_roads": self.n_free_road,
-            "n_toll_roads": self.n_toll_road,
-            "n_origins": n_origins,
-            "n_destinations": n_destinations,
-            "n_epochs": n_epochs,
-            "beta_dist_alpha": beta_dist_alpha,
-            "beta_dist_beta": beta_dist_beta,
-            "obs_size": len(road.obs_fact.get_titles()),
-            "obs_titles": road.obs_fact.get_titles()
-        })
+        self.manifestmaker.write_simulation_manifest(
+            {
+                "n_cars": self.n_cars,
+                "n_timesteps": self.timesteps,
+                "n_free_roads": self.n_free_road,
+                "n_toll_roads": self.n_toll_road,
+                "n_origins": n_origins,
+                "n_destinations": n_destinations,
+                "n_epochs": n_epochs,
+                "beta_dist_alpha": beta_dist_alpha,
+                "beta_dist_beta": beta_dist_beta,
+                "obs_size": len(road.obs_fact.get_titles()),
+                "obs_titles": road.obs_fact.get_titles(),
+            }
+        )
 
         for self.epoch in trange(n_epochs, unit="epochs"):
             self.build_environment(n_origins, n_destinations)
@@ -302,7 +306,7 @@ class Simulation:
                 act = self.agents[road].model.act(from_numpy(obs).type(torch.float32))
 
                 if act < threshold:
-                    act = (econ_cost[n])
+                    act = econ_cost[n]
 
                 cycle_information[n, "act"] = act
                 cycle_information[n, "pri"] = econ_cost[n]
@@ -315,9 +319,12 @@ class Simulation:
 
                 total_reward[road] += reward
                 self.agents[road].observe(
-                    self.agents[road], obs, reward, t == self.timesteps + 2, t == self.timesteps + 2
+                    self.agents[road],
+                    obs,
+                    reward,
+                    t == self.timesteps + 2,
+                    t == self.timesteps + 2,
                 )
-
 
                 self.set_toll_road_price(road, act)
 
@@ -382,12 +389,14 @@ class Simulation:
                 )
                 self.arrived_vehicles.remove(car)
                 comp_vehicles.append(
-                    (hash(car),
-                    self.epoch,
-                    self.current_timestep,
-                    round(self.current_timestep + decision[1]),
-                    str((decision[0], decision[2].t0)),
-                    car.vot,)
+                    (
+                        hash(car),
+                        self.epoch,
+                        self.current_timestep,
+                        round(self.current_timestep + decision[1]),
+                        str((decision[0], decision[2].t0)),
+                        car.vot,
+                    )
                 )
             self.log.batch_add_new_completed_vehicle(comp_vehicles)
 
@@ -413,7 +422,13 @@ if __name__ == "__main__":
     ap.add_argument("-TR", "--tollroads", default=2, action="store", type=int)
     ap.add_argument("-FR", "--freeroads", default=1, action="store", type=int)
     ap.add_argument("-L", "--logdir", default="./", action="store", type=str)
-    ap.add_argument("-A", "--agent", default="DQN", choices=[agent for agent in agent_configs] , type=str)
+    ap.add_argument(
+        "-A",
+        "--agent",
+        default="DQN",
+        choices=[agent for agent in agent_configs],
+        type=str,
+    )
     a = ap.parse_args()
     print(a)
     # # for x in range(10):
@@ -429,7 +444,7 @@ if __name__ == "__main__":
         n_toll_roads=a.tollroads,
         n_free_road=a.freeroads,
         log_dir=a.logdir,
-        agent=a.agent
+        agent=a.agent,
     )
     # s.log.conn.commit()
     # # s.log.pretty_graphs()

@@ -59,17 +59,19 @@ class DQNWrapper:
             # 1000000,
             # lambda: np.random.randint(3),
         )
-        sim.manifestmaker.write_model_manifest({
-            'model_arch': [str(m) for m in self.model],
-            # 'model_params': self.model.parameters(),
-            'replay_size': replay_size,
-            'replay_alpha0': replay_alpha0,
-            'replay_beta0': replay_beta0,
-            'replay_beta_steps': betasteps,
-            'explorer_decay_end': decay_timestep,
-            'explorer_start': explr_start,
-            'explorer_end': explr_end
-        })
+        sim.manifestmaker.write_model_manifest(
+            {
+                "model_arch": [str(m) for m in self.model],
+                # 'model_params': self.model.parameters(),
+                "replay_size": replay_size,
+                "replay_alpha0": replay_alpha0,
+                "replay_beta0": replay_beta0,
+                "replay_beta_steps": betasteps,
+                "explorer_decay_end": decay_timestep,
+                "explorer_start": explr_start,
+                "explorer_end": explr_end,
+            }
+        )
 
         print("replay size:", replay_size, ", decay timestep:", decay_timestep)
         return DoubleDQN(

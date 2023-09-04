@@ -283,7 +283,7 @@ class ManifestMaker:
     def __append_manifest(self, contents, filepath):
         file_data = json.load(open(filepath))
         with open(filepath, "w") as f:
-            json.dump(file_data+[contents], f, indent=4)
+            json.dump(file_data + [contents], f, indent=4)
 
     def create_model_manifest(self):
         self.__create_empty_manifest(self.manifest_dir + "/model_manifest.json")
