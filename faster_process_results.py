@@ -42,9 +42,11 @@ def main():
         cur.execute("SELECT MAX(EPOCH) FROM eval;")
         m_epoch = cur.fetchone()[0]
 
-        cur.execute("SELECT (TS_OUT - TS_IN) FROM eval WHERE EPOCH=?;", (m_epoch,))
+        # cur.execute("SELECT (TS_OUT - TS_IN) FROM eval WHERE EPOCH=?;", (m_epoch,))
+        cur.execute("SELECT TS_OUT, TS_IN FROM eval WHERE EPOCH=?;", (m_epoch,))
         # maxes.append( cur.fetchone()[0])
         vals = cur.fetchall()
+        vals = list(map(lambda x : x[0] - x[1], vals))
         # print((vals)[0])
         maxes.append(np.max(vals))
         mins.append(np.min(vals))
