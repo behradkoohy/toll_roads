@@ -3,7 +3,7 @@ import os
 import sqlite3
 import numpy as np
 import json
-
+from tqdm import tqdm
 
 def open_logging_db(exp_dir):
     """Opens the logging.db file in the exp_dir directory."""
@@ -16,9 +16,9 @@ def main():
     # Parse the command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--i_folder", help="The folder containing the exp_X directories"
+        "--i_folder", help="The folder containing the exp_X directories", default="pr_tst/"
     )
-    parser.add_argument("--output", help="The file to save the outputs to")
+    parser.add_argument("--output", help="The file to save the outputs to", default="fast_out.json")
     args = parser.parse_args()
 
     exp_dirs = [
@@ -35,8 +35,8 @@ def main():
     upqs = []
     lwqs = []
 
-    for exp_dir in exp_dirs:
-        print(os.path.join(os.path.join(args.i_folder, exp_dir), "logging.db"))
+    for exp_dir in tqdm(exp_dirs):
+        # print(os.path.join(os.path.join(args.i_folder, exp_dir), "logging.db"))
         conn = open_logging_db(os.path.join(args.i_folder, exp_dir))
         cur = conn.cursor()
         cur.execute("SELECT MAX(EPOCH) FROM eval;")
@@ -67,5 +67,5 @@ def main():
         json.dump(output, f, indent=4)
 
 
-
+main()
 
