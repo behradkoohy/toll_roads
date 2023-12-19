@@ -7,4 +7,4 @@
 #SBATCH --partition=amd
 
 source tollroads/bin/activate
-python process_results.py --i_folder $1 --output $2
+python fast_process_results.py --i_folder $1 --output $2

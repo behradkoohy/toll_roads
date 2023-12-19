@@ -42,14 +42,14 @@ def main():
         cur.execute("SELECT MAX(EPOCH) FROM eval;")
         m_epoch = cur.fetchone()[0]
 
-        cur.execute("SELECT MAX(TS_OUT - TS_IN) FROM eval WHERE EPOCH=?;", (m_epoch,))
+        cur.execute("SELECT MAX((TS_OUT - TS_IN)*VEH_VOT) FROM eval WHERE EPOCH=?;", (m_epoch,))
         maxes.append( cur.fetchone()[0])
-        cur.execute("SELECT MIN(TS_OUT - TS_IN) FROM eval WHERE EPOCH=?;", (m_epoch,))
+        cur.execute("SELECT MIN((TS_OUT - TS_IN)*VEH_VOT) FROM eval WHERE EPOCH=?;", (m_epoch,))
         mins.append( cur.fetchone()[0])
-        cur.execute("SELECT AVG(TS_OUT - TS_IN) FROM eval WHERE EPOCH=?;", (m_epoch,))
+        cur.execute("SELECT AVG((TS_OUT - TS_IN)*VEH_VOT) FROM eval WHERE EPOCH=?;", (m_epoch,))
         avgs.append( cur.fetchone()[0])
 
-        cur.execute("SELECT (TS_OUT - TS_IN) FROM eval WHERE EPOCH=?;", (m_epoch,))
+        cur.execute("SELECT ((TS_OUT - TS_IN)*VEH_VOT) FROM eval WHERE EPOCH=?;", (m_epoch,))
         ns = cur.fetchall()
         medians.append(np.median(ns))
         upqs.append(np.percentile(ns, 25))
@@ -62,6 +62,7 @@ def main():
         "meds": np.average(medians),
         "upqs": np.average(upqs),
         "lwqs": np.average(lwqs),
+        "all_avgs": avgs
     }
     with open(args.output, "w") as f:
         json.dump(output, f, indent=4)

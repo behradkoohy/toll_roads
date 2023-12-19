@@ -45,13 +45,14 @@ class Simulation:
         n_cars,
         n_timesteps,
         n_toll_roads=2,
-        n_free_road=1,
+        n_free_road=0,
         random_seed=0,
         n_origins=2,
         n_destinations=2,
         n_epochs=2,
         log_dir="",
         agent="",
+        fixed_capacity=10
     ):
         self.n_cars = n_cars
         self.n_free_road = n_free_road
@@ -63,7 +64,7 @@ class Simulation:
         self.log = Logging(db_file=log_dir + "logging.db")
         self.manifestmaker = ManifestMaker(log_dir)
         self.agent_inp = agent
-
+        self.fixed_capacity = fixed_capacity
         # self.car_dist_arrival = [round(x) for x in linspace(0, n_timesteps, n_cars)]
         beta_dist_alpha = 5
         beta_dist_beta = 5
@@ -137,15 +138,16 @@ class Simulation:
         # self.road_cost = {r: 15 for r in self.toll_roads}
         self.road_cost = {}
         # generate the toll roads and their values
-        road_ct0 = [(90, 60), (30, 20)]
+        # road_ct0 = [(10, 10), (10, 10)]
         # road_ct0 = [(9999, 60), (9999, 20)]
+        road_ct0 = [( self.fixed_capacity, 50), (self.fixed_capacity, 50)]
         for rd in zip(enumerate(self.toll_roads), road_ct0):
             x = rd[0][0]
             road = rd[0][1]
             c = rd[1][0]
             t0 = rd[1][1]
-            # self.road_cost[rd[0][1]] = rd[1][1]
-            self.road_cost[rd[0][1]] = 30
+            self.road_cost[rd[0][1]] = rd[1][1]
+            # self.road_cost[rd[0][1]] = 30
             # c = random.randint(10, 30)
             # c = 20
             # t0 = 15
@@ -154,7 +156,7 @@ class Simulation:
         # generate the free roads
         self.free_roads = [
             # FreeRoad(randint(15, round(self.timesteps * 0.9)))
-            FreeRoad(150)
+            FreeRoad(200)
             for _ in range(self.n_free_road)
         ]
 
@@ -171,7 +173,7 @@ class Simulation:
         for o, d, r in zip(self.origins, self.destinations, self.toll_roads):
             self.route_matrix[(o, d, r)] = r.t0
 
-        vehicle_vot = np.random.uniform(0.2, 2, self.n_cars)
+        vehicle_vot = np.random.uniform(2.5, 9.5, self.n_cars)
         # vehicle_vot = np.asarray([1 for x in range(self.n_cars)])
 
         car_details = list(
@@ -429,6 +431,7 @@ if __name__ == "__main__":
         choices=[agent for agent in agent_configs],
         type=str,
     )
+    ap.add_argument("-CP", "--capacity", default=30, action="store", type=int)
     a = ap.parse_args()
     print(a)
     # # for x in range(10):
@@ -445,6 +448,7 @@ if __name__ == "__main__":
         n_free_road=a.freeroads,
         log_dir=a.logdir,
         agent=a.agent,
+        fixed_capacity=a.capacity
     )
     # s.log.conn.commit()
     # # s.log.pretty_graphs()

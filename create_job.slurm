@@ -7,5 +7,5 @@
 #SBATCH --partition=amd
 
 source tollroads/bin/activate
-python Simulation.py -C $1 -T $2 -E $3 -L $4
+python Simulation.py -C $1 -T $2 -E $3 -L $4 -A $5 -CP $6
 
