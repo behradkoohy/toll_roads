@@ -21,7 +21,7 @@ from numpy import linspace
 from functools import partial
 from collections import defaultdict
 from itertools import combinations, product
-
+from QueueManagement import TravellingCar, RoadQueueManager
 from tqdm import trange
 
 from Model import DQNWrapper, CDQNWrapper
@@ -49,10 +49,10 @@ class Simulation:
         random_seed=0,
         n_origins=2,
         n_destinations=2,
-        n_epochs=2,
+        n_epochs=10,
         log_dir="",
         agent="",
-        fixed_capacity=10
+        fixed_capacity=150,
     ):
         self.n_cars = n_cars
         self.n_free_road = n_free_road
@@ -122,6 +122,8 @@ class Simulation:
             }
         )
 
+        self.roadQueueManager = RoadQueueManager(self)
+
         for self.epoch in trange(n_epochs, unit="epochs"):
             self.build_environment(n_origins, n_destinations)
             self.start_sim()
@@ -140,7 +142,7 @@ class Simulation:
         # generate the toll roads and their values
         # road_ct0 = [(10, 10), (10, 10)]
         # road_ct0 = [(9999, 60), (9999, 20)]
-        road_ct0 = [( self.fixed_capacity, 50), (self.fixed_capacity, 50)]
+        road_ct0 = [(self.fixed_capacity, 10), (self.fixed_capacity, 10)]
         for rd in zip(enumerate(self.toll_roads), road_ct0):
             x = rd[0][0]
             road = rd[0][1]
@@ -159,6 +161,8 @@ class Simulation:
             FreeRoad(200)
             for _ in range(self.n_free_road)
         ]
+
+        self.roadQueueManager.clearQueue()
 
         # initialise epsilon of o and d
         # epsilon is simply the extra distance to go from one destination to the other
@@ -200,7 +204,6 @@ class Simulation:
                         # random.randint(0, 150)  # Vehicle budget
                     )
                 )
-
         # print(self.road_cost)
 
     def get_demand(self):
@@ -254,7 +257,7 @@ class Simulation:
         return self.cars
 
     def gym_get_vehicles_remaining(self):
-        vehicles_left = self.n_cars - self.arrived_vehicle_count
+        vehicles_left = self.n_cars - self.roadQueueManager.arrived_vehicles
         return vehicles_left
 
     def gym_get_same_destination(self, destination):
@@ -285,135 +288,76 @@ class Simulation:
         ]
 
     def start_sim(self):
-        threshold = 0.25
-        # update vehicles which have arrived at the function
-        arrived = 0
-
-        self.t_curr_adj = {
-            r: defaultdict(int) for r in (self.toll_roads + self.free_roads)
-        }
-        self.new_vehicles = defaultdict(int)
-        self.arrived_vehicle_count = 0
-        econ_cost = self.gym_get_econ_cost()
-        # demand = self.gym_get_demand()
-        # obs = np.array(econ_cost + demand, dtype="float32")
+        self.threshold = 0.25
         total_reward = defaultdict(int)
-        for t in range(self.timesteps + 2):
-            cycle_information = {}
-            self.current_timestep = t
-            for n, road in enumerate(self.toll_roads):
-                # self.road_time_costs = {r.get_road_travel_time(): r for r in (self.toll_roads + self.free_roads)}
+        for self.current_timestep in range(self.timesteps + 2):
+            # First, we update the agents actions
+            for road in self.toll_roads:
                 obs = road.get_obs()
-
                 act = self.agents[road].model.act(from_numpy(obs).type(torch.float32))
+                new_price = self.gym_get_specific_economic_cost(road) + (act - 1)
+                if new_price < self.threshold:
+                    self.set_toll_road_price(road, self.threshold)
+                else:
+                    self.set_toll_road_price(road, new_price)
 
-                if act < threshold:
-                    act = econ_cost[n]
+            # Next, we update the number of vehicles that have arrived at this timestep
+            self.arrived_vehicles = self.cars[self.current_timestep]
+            self.roadQueueManager.updateQueue()
+            road_travel_time = {
+                road: road.get_road_travel_time()
+                for road in self.toll_roads + self.free_roads
+            }
+            road_econom_cost = {
+                road: self.road_cost.get(road, 0)
+                for road in self.toll_roads + self.free_roads
+            }
+            # this is the hard bit, I want to generate and make the quantal process without a while loop
+            roadUtilityFunct = {
+                road: lambda x: (
+                    -((x * road_travel_time[road]) + road_econom_cost[road])
+                )
+                for road in self.toll_roads + self.free_roads
+            }
+            # TODO: go from the line above into a functioning simulator lol
+            # TODO: I think the key will be to use a loop atleast, currently missing one step and not sure what it is
+            decisions = [
+                list(
+                    map(
+                        car.new_quantal_decision,
+                        [[
+                            (road, roadfn(car.vot))
+                            for road, roadfn in roadUtilityFunct.items()
+                        ]]
+                    )
+                )
+                for car in self.arrived_vehicles
+            ]
 
-                cycle_information[n, "act"] = act
-                cycle_information[n, "pri"] = econ_cost[n]
+            for decision, car in zip(decisions, self.arrived_vehicles):
+                # breakpoint()
+                tc = TravellingCar(
+                    car,
+                    hash(car),
+                    self.current_timestep,
+                    self.current_timestep + road_travel_time[decision[0][0]],
+                    self.current_timestep + road_travel_time[decision[0][0]],
+                    decision[0],
+                    car.vot
+                )
+                self.roadQueueManager.addToQueue(decision[0][0], tc)
 
+            for road in self.toll_roads:
                 obs, reward, done = road.step(act)
-                cycle_information[n, "obs"] = codecs.encode(
-                    pickle.dumps(obs), "base64"
-                ).decode()
-                cycle_information[n, "rew"] = reward
-
                 total_reward[road] += reward
                 self.agents[road].observe(
                     self.agents[road],
                     obs,
                     reward,
-                    t == self.timesteps + 2,
-                    t == self.timesteps + 2,
+                    self.current_timestep == self.timesteps + 1,
+                    self.current_timestep == self.timesteps + 1,
                 )
-
-                self.set_toll_road_price(road, act)
-
-            # add arrived vehicles at this timestep
-            self.arrived_vehicles += self.cars[t]
-            self.arrived_vehicle_count += len(self.cars[t])
-
-            for road in self.toll_roads + self.free_roads:
-                arrived += self.t_curr_adj[road][t]
-                road.t_curr -= self.t_curr_adj[road][t]
-
-            # update the class price function
-
-            self.timestep_route_cost_vectors = {}
-
-            # first, lets review the dominated pairings for all routes
-            for (origin, destination) in product(self.origins, self.destinations):
-                econ_cost = self.get_road_economic_cost() + ([0] * self.n_free_road)
-
-                time_cost = list(
-                    self.get_road_time_cost(origin, destination).values()
-                ) + [r.get_road_travel_time() for r in self.free_roads]
-
-                road_id = [r for r in self.toll_roads] + [r for r in self.free_roads]
-
-                self.timestep_route_cost_vectors[origin, destination] = list(
-                    zip(econ_cost, time_cost, road_id)
-                )
-
-            road_adj_tcur = {}
-            comp_vehicles = []
-            while len(self.arrived_vehicles) > 0:
-                car = self.arrived_vehicles[0]
-                vehicle_specific_route_costs = [
-                    # (e, t, r, e / t)
-                    (e, t, r, -((car.vot * t) + e))
-                    for (e, t, r) in self.timestep_route_cost_vectors[
-                        (car.origin, car.destination)
-                    ]
-                ]
-                """
-                NOTE: look into this
-                we are using e/t to calculate the utility but we're also using car budget to limit our choices
-                this isn't correct
-                we need to edit budget to be value of time and to utilise that instead
-
-                """
-                # decision = car.make_decision(vehicle_specific_route_costs)[0]
-                choices = car.make_quantal_decision(vehicle_specific_route_costs)
-                decision = choices[0]
-                # print(decision)
-                # vehicle_choice_list.append(decision)
-                road_adj_tcur[decision[2]] = road_adj_tcur.get(decision[2], 0) + 1
-
-                self.t_curr_adj[decision[2]][
-                    round(self.current_timestep + decision[1])
-                ] = (
-                    self.t_curr_adj[decision[2]][
-                        round(self.current_timestep + decision[1])
-                    ]
-                    + 1
-                )
-                self.arrived_vehicles.remove(car)
-                comp_vehicles.append(
-                    (
-                        hash(car),
-                        self.epoch,
-                        self.current_timestep,
-                        round(self.current_timestep + decision[1]),
-                        str((decision[0], decision[2].t0)),
-                        car.vot,
-                    )
-                )
-            self.log.batch_add_new_completed_vehicle(comp_vehicles)
-
-            for r in self.toll_roads + self.free_roads:
-                self.new_vehicles[r] = road_adj_tcur.get(r, 0)
-                r.t_curr += road_adj_tcur.get(r, 0)
-
-            logger_params = []
-            for n in range(self.n_toll_road):
-                for l_arg in ["obs", "act", "rew", "pri"]:
-                    if l_arg == "obs":
-                        logger_params.append(str(cycle_information[n, l_arg]))
-                    else:
-                        logger_params.append(cycle_information[n, l_arg])
-            self.log.add_timestep_results(self.epoch, t, *logger_params)
+                self.roadQueueManager.clearRewards()
 
 
 if __name__ == "__main__":
@@ -422,16 +366,16 @@ if __name__ == "__main__":
     ap.add_argument("-T", "--timesteps", default=200, action="store", type=int)
     ap.add_argument("-E", "--epochs", default=100, action="store", type=int)
     ap.add_argument("-TR", "--tollroads", default=2, action="store", type=int)
-    ap.add_argument("-FR", "--freeroads", default=1, action="store", type=int)
+    ap.add_argument("-FR", "--freeroads", default=0, action="store", type=int)
     ap.add_argument("-L", "--logdir", default="./", action="store", type=str)
     ap.add_argument(
         "-A",
         "--agent",
-        default="DQN",
+        default="Random",
         choices=[agent for agent in agent_configs],
         type=str,
     )
-    ap.add_argument("-CP", "--capacity", default=30, action="store", type=int)
+    ap.add_argument("-CP", "--capacity", default=100, action="store", type=int)
     a = ap.parse_args()
     print(a)
     # # for x in range(10):
@@ -448,7 +392,7 @@ if __name__ == "__main__":
         n_free_road=a.freeroads,
         log_dir=a.logdir,
         agent=a.agent,
-        fixed_capacity=a.capacity
+        fixed_capacity=a.capacity,
     )
     # s.log.conn.commit()
     # # s.log.pretty_graphs()

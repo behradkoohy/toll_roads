@@ -91,9 +91,10 @@ class TollRoad(gym.Env, DynamicRoad):
         :return:
         """
         obs = self.get_obs()
-        reward = self.simulation.new_vehicles[
-            self
-        ] * self.simulation.gym_get_specific_economic_cost(self)
+        # reward = self.simulation.new_vehicles[
+        #     self
+        # ] * self.simulation.gym_get_specific_economic_cost(self)
+        reward = self.simulation.roadQueueManager.roadRewards[self]
         done = False
         return obs, float(reward), done
 

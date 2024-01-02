@@ -5,6 +5,7 @@ import numpy as np
 
 from utils import agent_probability_function
 from random import choices
+from scipy.special import softmax, log_softmax
 
 
 class Car:
@@ -62,11 +63,14 @@ class Car:
             print(x, int(lambd * x))
             raise OverflowError
 
-    def quantalify(self, r, rest, lambd=0.5):
-        return np.exp(lambd * r) / np.sum(np.exp(lambd * r), axis=-0)
+    def quantalify(self, r, rest, lambd=0.1):
+        # breakpoint()
+         
+        return np.exp(lambd * r) / np.sum([np.exp(lambd * re) for re in rest], axis=-0)
 
-    def make_quantal_decision(self, route_costs):
+    def make_quantal_decision(self, route_costs, utility=None):
         utility = [u[3] for u in route_costs]
+        # quantal_weights = [float(u)/sum(utility) for u in utility]
         # # print(utility)
         # exponential_util = []
         # for x in utility:
@@ -77,11 +81,25 @@ class Car:
         # print(exponential_util)
         # quantal_weights = [sum(exponential_util) / u for u in exponential_util]
         # # print([(r1, r2) for (r1, r2, _, _) in route_costs], utility, exponential_util, quantal_weights)
+        utility = [u-max(utility) for u in utility]
+
         quantal_weights = [
             self.quantalify(x, np.asarray(utility, dtype=np.float32)) for x in utility
         ]
+        # quantal_weights = softmax(utility)
+        # print(utility, quantal_weights)
+        # print(quantal_weights, utility, route_costs)
         choice = choices(route_costs, weights=quantal_weights)
         return choice
+
+    def new_quantal_decision(self, routes):
+        utility = [u[1] for u in routes]
+        utility = [u-max(utility) for u in utility]
+        quantal_weights = [
+            self.quantalify(x, np.asarray(utility, dtype=np.float32)) for x in utility
+        ]
+        choice = choices(routes, weights=quantal_weights)
+        return choice[0]
 
     def __repr__(self):
         return (

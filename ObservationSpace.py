@@ -169,9 +169,7 @@ class ObservationSpace:
                 "high": [self.simulation.n_cars],
                 "funct": lambda: [
                     len(
-                        self.simulation.t_curr_adj.get(
-                            self.simulation.current_timestep, []
-                        )
+                        self.simulation.arrived_vehicles
                     )
                 ],
                 "title": ["Cars arriving at current timestep"],

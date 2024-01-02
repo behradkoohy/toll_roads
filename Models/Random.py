@@ -14,7 +14,7 @@ class RandomAgentWrapper:
 class RandomAgent:
     def __init__(self, *args):
         self.min = 0
-        self.max = 100
+        self.max = 2
 
     def act(self, act):
         return random.randint(self.min, self.max)

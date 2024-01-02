@@ -1,16 +1,22 @@
-# This is a sample Python script.
+from Simulation import Simulation
 
-# Press ⌃R to execute it or replace it with your code.
-# Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
+class Benchmark():
+    def __init__(self):
+        pass
 
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f"Hi, {name}")  # Press ⌘F8 to toggle the breakpoint.
-
+    """
+    We need to make this class run the simulation with the different 'manifests' (read: the order of which
+    we run the agents). In between runs, we need to read the log file, create an output JSON/CSV (probably
+    json) to store the results. Ideally, after we have ran it, we can output some graphs and nonsense that
+    will show the performance of the agents.
+    
+    
+    """
+    def run(self):
+        sim = Simulation()
 
 # Press the green button in the gutter to run the script.
 if __name__ == "__main__":
-    print_hi("PyCharm")
+    pass
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/

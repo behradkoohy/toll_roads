@@ -286,13 +286,13 @@ class ManifestMaker:
             json.dump(file_data + [contents], f, indent=4)
 
     def create_model_manifest(self):
-        self.__create_empty_manifest(self.manifest_dir + "/model_manifest.json")
+        self.__create_empty_manifest(self.manifest_dir + "model_manifest.json")
 
     def write_model_manifest(self, data):
-        self.__append_manifest(data, self.manifest_dir + "/model_manifest.json")
+        self.__append_manifest(data, self.manifest_dir + "model_manifest.json")
 
     def write_simulation_manifest(self, data):
-        self.__write_manifest(data, self.manifest_dir + "/simulation_manifest.json")
+        self.__write_manifest(data, self.manifest_dir + "simulation_manifest.json")
 
     # def write_environment_manifest(self, data):
     #     self.__write_manifest(data, self.manifest_dir + "/simulation_manifest.json")

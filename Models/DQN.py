@@ -1,5 +1,5 @@
 from pfrl import replay_buffers, explorers, q_functions
-from pfrl.agents import DoubleDQN, CategoricalDQN
+from pfrl.agents import DoubleDQN, CategoricalDQN, DQN
 from pfrl.q_functions import DiscreteActionValueHead
 from torch import nn, optim
 import numpy as np
@@ -12,19 +12,19 @@ class DQNWrapper:
             # nn.Conv2d(obs_size, 64, kernel_size=(2, 2)),
             # nn.ReLU(),
             # nn.Flatten(),
-            nn.Linear(obs_size, 128),
+            nn.Linear(obs_size, 16),
             nn.ReLU(),
-            nn.Linear(128, 256),
-            nn.ReLU(),
+            # nn.Linear(128, 256),
+            # nn.ReLU(),
             # nn.Linear(1024, 1024),
             # nn.ReLU(),
             # nn.Linear(256, 512),
             # nn.ReLU(),
             # nn.Linear(512, 256),
             # nn.ReLU(),
-            nn.Linear(256, 128),
+            nn.Linear(16, 16),
             nn.ReLU(),
-            nn.Linear(128, 3),
+            nn.Linear(16, 3),
             DiscreteActionValueHead(),
         )
         print(self, (sum([len(x) for x in self.model.parameters()])))
@@ -72,15 +72,15 @@ class DQNWrapper:
         })
 
         print("replay size:", replay_size, ", decay timestep:", decay_timestep)
-        self.model = DoubleDQN(
+        self.model = DQN(
             self.model,
             self.opt,
             self.replay_buffer,
             0.99,
             self.explorer,
-            minibatch_size=2,
-            replay_start_size=64,
-            target_update_interval=50,
+            minibatch_size=64,
+            replay_start_size=100,
+            target_update_interval=10,
         )
         return self
 
