@@ -49,7 +49,7 @@ class Simulation:
         random_seed=0,
         n_origins=2,
         n_destinations=2,
-        n_epochs=10,
+        n_epochs=1,
         log_dir="",
         agent="",
         fixed_capacity=150,
@@ -170,8 +170,8 @@ class Simulation:
         # these costs are static
         # self.epsilon_o = randint(0, 5)
         # self.epsilon_d = randint(0, 5)
-        self.epsilon_o = 1
-        self.epsilon_d = 1
+        self.epsilon_o = 0
+        self.epsilon_d = 0
 
         self.route_matrix = {}
         for o, d, r in zip(self.origins, self.destinations, self.toll_roads):
@@ -249,51 +249,53 @@ class Simulation:
     def gym_get_specific_economic_cost(self, road):
         return self.road_cost[road]
 
-    def gym_get_vehicles_info(self):
-        # first we need to get the number of cars left
-        vehicles_left = self.n_cars - self.arrived_vehicle_count
-        breakpoint()
-
-        return self.cars
 
     def gym_get_vehicles_remaining(self):
         vehicles_left = self.n_cars - self.roadQueueManager.arrived_vehicles
         return vehicles_left
-
-    def gym_get_same_destination(self, destination):
-        return len(
-            [
-                i
-                for sub in self.cars.values()
-                for i in sub
-                if (i.destination == destination)
-                and (i.arrival >= self.current_timestep)
-            ]
-        )
-
-    def gym_get_diff_destination(self, destination):
-        return len(
-            [
-                i
-                for sub in self.cars.values()
-                for i in sub
-                if (i.destination != destination)
-                and (i.arrival >= self.current_timestep)
-            ]
-        )
 
     def gym_get_road_travel_times(self):
         return [
             road.get_road_travel_time() for road in self.toll_roads + self.free_roads
         ]
 
+    def gym_get_arrived_car_details(self):
+        cars = self.arrived_vehicles
+        if cars == []:
+            return [0,0,0,0,0,0,0,0]
+        else:
+            car_vots = [c.vot for c in cars]
+            return [
+                np.min(car_vots),
+                np.quantile(car_vots, 0.25),
+                np.median(car_vots),
+                np.average(car_vots),
+                np.var(car_vots),
+                np.quantile(car_vots, 0.75),
+                np.max(car_vots),
+                np.ptp(car_vots)
+            ]
+
+    """
+    TODO: 
+        1. number of vehicles arriving at this timestep DONE
+        2. number of cars arriving next timestep (1-10) DONE (up to 30)
+        3. Mean, Q1, Q3, Median, Min, Max VoT of vehicles arrived at this timestep DONE
+        4. cars in current road queue DONE
+        5. cars in other road queue NOT FEASIBLE EASILY
+        6. timesteps until queue reduces DONE
+        7. timesteps left in simulation DONE
+    """
+
     def start_sim(self):
         self.threshold = 0.25
         total_reward = defaultdict(int)
         for self.current_timestep in range(self.timesteps + 2):
             # First, we update the agents actions
+            common_obs = self.toll_roads[0].get_common_obs()
             for road in self.toll_roads:
-                obs = road.get_obs()
+                unique_obs = road.get_unique_obs()
+                obs = np.concatenate([common_obs, unique_obs])
                 act = self.agents[road].model.act(from_numpy(obs).type(torch.float32))
                 new_price = self.gym_get_specific_economic_cost(road) + (act - 1)
                 if new_price < self.threshold:

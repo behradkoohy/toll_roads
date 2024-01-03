@@ -74,3 +74,11 @@ class RoadQueueManager():
 
     def getArrivedVehicles(self):
         return self.arrived_vehicles
+
+    def getCarsOnRoad(self, road):
+        return len(self.roadQueues[road])
+
+    def getTimeStepsUntilTimeReduction(self, road):
+        if not self.roadQueues[road]:
+            return 0
+        return self.roadQueues[road][0].currentETA - self.simulation.current_timestep

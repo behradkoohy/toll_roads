@@ -81,6 +81,12 @@ class TollRoad(gym.Env, DynamicRoad):
     def get_obs(self):
         return np.array(self.obs_fact.get_obs(), dtype=np.float32)
 
+    def get_unique_obs(self):
+        return np.array(self.obs_fact.get_obs_unique(), dtype=np.float32)
+
+    def get_common_obs(self):
+        return np.array(self.obs_fact.get_obs_not_unique(), dtype=np.float32)
+
     def step(self, action):
         """
         normally in this function you perform the maths blah blah blah
