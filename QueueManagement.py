@@ -1,5 +1,4 @@
-
-class TravellingCar():
+class TravellingCar:
     def __init__(self, car, id, timeIn, currentETA, initialETA, road, vot):
         self.car = car
         self.id = id
@@ -9,7 +8,8 @@ class TravellingCar():
         self.road = road
         self.vot = vot
 
-class RoadQueueManager():
+
+class RoadQueueManager:
     def __init__(self, simulation):
         self.simulation = simulation
         self.arrived_vehicles = 0
@@ -23,7 +23,9 @@ class RoadQueueManager():
     def addToQueue(self, road, travellingCar: TravellingCar):
 
         self.roadQueues[road] = self.roadQueues[road] + [travellingCar]
-        self.roadRewards[road] = self.roadRewards.get(road, 0.0) + self.simulation.road_cost[road]
+        self.roadRewards[road] = (
+            self.roadRewards.get(road, 0.0) + self.simulation.road_cost[road]
+        )
 
     def updateQueue(self):
         current_time = self.simulation.current_timestep
@@ -35,16 +37,21 @@ class RoadQueueManager():
                 # check if car has arrived
                 # case 1: current time is the ETA in which case it has arrived on time
                 # case 2: new ETA is less than the current time, in which case it arrives early
-                if car.currentETA == current_time or car.timeIn + current_road_travel_time < current_time:
+                if (
+                    car.currentETA == current_time
+                    or car.timeIn + current_road_travel_time < current_time
+                ):
                     self.arrived_vehicles += 1
-                    done_vehicles.append([
-                        car.id,
-                        self.simulation.epoch,
-                        car.timeIn,
-                        self.simulation.current_timestep,
-                        str(hash(road)),
-                        car.vot
-                    ])
+                    done_vehicles.append(
+                        [
+                            car.id,
+                            self.simulation.epoch,
+                            car.timeIn,
+                            self.simulation.current_timestep,
+                            str(hash(road)),
+                            car.vot,
+                        ]
+                    )
                     continue
                 elif current_time + current_road_travel_time < car.currentETA:
                     car.currentETA = current_time + current_road_travel_time
@@ -58,9 +65,6 @@ class RoadQueueManager():
             # print(self.arrived_vehicles)
         self.simulation.log.batch_add_new_completed_vehicle(done_vehicles)
         # self.roadRewards = {r: 0.0 for r in self.simulation.toll_roads}
-
-    def updateTravelTime(self):
-        self.simulation.get_road_time_cost()
 
     def clearQueue(self):
         self.arrived_vehicles = 0
@@ -82,3 +86,11 @@ class RoadQueueManager():
         if not self.roadQueues[road]:
             return 0
         return self.roadQueues[road][0].currentETA - self.simulation.current_timestep
+
+    def isSimulationComplete(self):
+        if self.simulation.current_timestep > self.simulation.timesteps and all(
+            len(r) == 0 for r in self.roadQueues.values()
+        ):
+            return True
+        else:
+            return False

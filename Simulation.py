@@ -215,20 +215,6 @@ class Simulation:
     def set_toll_road_price(self, road, price):
         self.road_cost[road] = price
 
-    def get_road_time_cost(self, origin, destination):
-        route_costs = {}
-        for road in self.toll_roads:
-            epsilon = 0
-            if road.origin != origin:
-                epsilon += self.epsilon_o
-            if road.destination != destination:
-                epsilon += self.epsilon_d
-            route_costs[road] = road.get_road_travel_time() + epsilon
-
-        for road in self.free_roads:
-            route_costs[road] = road.get_road_travel_time()
-        return route_costs
-
     def get_road_economic_cost(self):
         return [x for x in self.road_cost.values()]
 
@@ -290,7 +276,8 @@ class Simulation:
     def start_sim(self):
         self.threshold = 0.25
         total_reward = defaultdict(int)
-        for self.current_timestep in range(self.timesteps + 2):
+        self.current_timestep = 0
+        while not self.roadQueueManager.isSimulationComplete():
             # First, we update the agents actions
             common_obs = self.toll_roads[0].get_common_obs()
             for road in self.toll_roads:
@@ -305,6 +292,8 @@ class Simulation:
 
             # Next, we update the number of vehicles that have arrived at this timestep
             self.arrived_vehicles = self.cars[self.current_timestep]
+            # if self.arrived_vehicles == []:
+                # continue
             self.roadQueueManager.updateQueue()
             road_travel_time = {
                 road: road.get_road_travel_time()
@@ -360,6 +349,7 @@ class Simulation:
                     self.current_timestep == self.timesteps + 1,
                 )
                 self.roadQueueManager.clearRewards()
+            self.current_timestep += 1
 
 
 if __name__ == "__main__":
