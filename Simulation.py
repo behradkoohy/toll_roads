@@ -294,9 +294,13 @@ class Simulation:
             self.arrived_vehicles = self.cars[self.current_timestep]
             # if self.arrived_vehicles == []:
                 # continue
-            self.roadQueueManager.updateQueue()
+            # self.roadQueueManager.updateQueue()
+            # road_travel_time = {
+            #     road: road.get_road_travel_time()
+            #     for road in self.toll_roads + self.free_roads
+            # }
             road_travel_time = {
-                road: road.get_road_travel_time()
+                road: road.get_accurate_road_travel_time()
                 for road in self.toll_roads + self.free_roads
             }
             road_econom_cost = {

@@ -5,7 +5,8 @@ from gym import spaces
 from ObservationSpace import ObservationSpace
 from utils import volume_delay_function
 from functools import partial
-from collections import defaultdict
+from itertools import accumulate
+from collections import defaultdict, Counter
 from numpy.random import normal, randint, beta
 
 
@@ -113,6 +114,44 @@ class TollRoad(gym.Env, DynamicRoad):
 
     def get_road_travel_time(self, n_ext=0):
         return self.vdf(self.t_curr + n_ext)
+
+    def get_accurate_road_travel_time(self, n_ext=0):
+        road_queue = self.simulation.roadQueueManager.getQueue(self)
+        if road_queue == [] and self.t_curr == 0:
+            return self.get_road_travel_time()
+        else:
+            cumulative_etas = accumulate([r.currentETA for r in road_queue])
+            etas = Counter(cumulative_etas)
+            """
+            adjusted_etas is basically {offset timestep from now: number of cars on road currently}
+            
+            So we somehow have to find out how long it would take to travel at this point
+            
+            """
+            # breakpoint()
+            adjusted_etas = {k - self.simulation.current_timestep: self.t_curr - v for k,v in etas.items()}
+            # breakpoint()
+            previous_value = 0
+            for x in range(int(max(adjusted_etas.keys()))):
+                if x not in adjusted_etas.keys():
+                    adjusted_etas[x] = previous_value
+                else:
+                    previous_value = adjusted_etas[x]
+
+            arrived = False
+            projected_eta = 0
+            travel_time = self.vdf(self.t_curr)
+
+            while not arrived:
+                print(self, self.t_curr, projected_eta, travel_time)
+                if projected_eta > travel_time:
+                    arrived = True
+                    return self.simulation.current_timestep + projected_eta
+                else:
+                    projected_eta = self.vdf(adjusted_etas[projected_eta])
+                    projected_eta += 1
+
+
 
     # def __repr__(self):
     #     return (

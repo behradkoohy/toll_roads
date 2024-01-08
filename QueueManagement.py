@@ -8,6 +8,11 @@ class TravellingCar:
         self.road = road
         self.vot = vot
 
+    def __repr__(self):
+        return "(" + ", ".join(list(
+            map(str, [self.id, self.timeIn, self.currentETA, self.road, self.vot]))) + ")"
+        return "(" + ", ".join(list(map(str, [self.car, self.id, self.timeIn, self.currentETA, self.initialETA, self.road, self.vot]))) + ")"
+
 
 class RoadQueueManager:
     def __init__(self, simulation):
@@ -26,6 +31,7 @@ class RoadQueueManager:
         self.roadRewards[road] = (
             self.roadRewards.get(road, 0.0) + self.simulation.road_cost[road]
         )
+        road.t_curr += 1
 
     def updateQueue(self):
         current_time = self.simulation.current_timestep
@@ -75,6 +81,9 @@ class RoadQueueManager:
 
     def getQueueDemand(self):
         return [len(x) for x in self.roadQueues.values()]
+
+    def getQueue(self, road):
+        return self.roadQueues[road]
 
     def getArrivedVehicles(self):
         return self.arrived_vehicles
