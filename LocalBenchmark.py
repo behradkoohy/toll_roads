@@ -43,6 +43,7 @@ class ResultProcessor:
 
         self.cur_in.execute("SELECT MAX(EPOCH) FROM eval;")
         m_epoch = self.cur_in.fetchone()[0]
+        print(m_epoch)
         for x in trange(m_epoch + 1, unit="timesteps"):
             self.cur_in.execute(
                 "SELECT MAX((TS_OUT - TS_IN)*VEH_VOT) FROM eval WHERE EPOCH=?;", (x,)
@@ -145,6 +146,7 @@ class Benchmark:
     def run(self):
         fixed_agents = ["Random", "Fixed", "Free"]
         for agent in fixed_agents:
+            print(1)
             sim = Simulation(
                 self.n_cars,
                 self.timesteps,
@@ -154,6 +156,7 @@ class Benchmark:
                 log_dir=self.logdir,
                 fixed_capacity=self.capacity,
             )
+            print(20)
             self.processor.process_fixed_result(
                 agent, db_path=self.logdir + os.sep + "logging.db"
             )
@@ -163,7 +166,7 @@ class Benchmark:
                 self.n_cars,
                 self.timesteps,
                 agent="DQN",
-                n_epochs=100,
+                n_epochs=10,
                 n_toll_roads=self.n_tollroads,
                 n_free_road=self.n_freeroads,
                 log_dir=self.logdir,

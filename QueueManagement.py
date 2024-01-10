@@ -11,7 +11,7 @@ class TravellingCar:
     def __repr__(self):
         return "(" + ", ".join(list(
             map(str, [self.id, self.timeIn, self.currentETA, self.road, self.vot]))) + ")"
-        return "(" + ", ".join(list(map(str, [self.car, self.id, self.timeIn, self.currentETA, self.initialETA, self.road, self.vot]))) + ")"
+        # return "(" + ", ".join(list(map(str, [self.car, self.id, self.timeIn, self.currentETA, self.initialETA, self.road, self.vot]))) + ")"
 
 
 class RoadQueueManager:

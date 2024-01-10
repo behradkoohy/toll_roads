@@ -30,7 +30,11 @@ Observation Space is a multidimensional box space, representing different variab
 
 class TollRoad(gym.Env, DynamicRoad):
     def __init__(
-        self, simulation, origin, destination, max_price=10.0,
+        self,
+        simulation,
+        origin,
+        destination,
+        max_price=10.0,
     ):
         super(TollRoad, self).__init__()
         self.simulation = simulation
@@ -116,47 +120,46 @@ class TollRoad(gym.Env, DynamicRoad):
         return self.vdf(self.t_curr + n_ext)
 
     def get_accurate_road_travel_time(self, n_ext=0):
-        road_queue = self.simulation.roadQueueManager.getQueue(self)
-        if road_queue == [] and self.t_curr == 0:
-            return self.get_road_travel_time()
-        else:
-            cumulative_etas = accumulate([r.currentETA for r in road_queue])
-            etas = Counter(cumulative_etas)
-            """
-            adjusted_etas is basically {offset timestep from now: number of cars on road currently}
-            
-            So we somehow have to find out how long it would take to travel at this point
-            
-            """
-            # breakpoint()
-            adjusted_etas = {k - self.simulation.current_timestep: self.t_curr - v for k,v in etas.items()}
-            # breakpoint()
-            previous_value = 0
-            for x in range(int(max(adjusted_etas.keys()))):
-                if x not in adjusted_etas.keys():
-                    adjusted_etas[x] = previous_value
-                else:
-                    previous_value = adjusted_etas[x]
+        pass
 
-            arrived = False
-            projected_eta = 0
-            travel_time = self.vdf(self.t_curr)
+    def maintain_queue(self):
+        current_time = self.simulation.current_timestep
+        completed_cars = [
+            c
+            for c in self.simulation.roadQueueManager.roadQueues[self]
+            if c.currentETA == current_time
+        ]
+        in_queue_cars = [
+            c
+            for c in self.simulation.roadQueueManager.roadQueues[self]
+            if not c.currentETA == current_time
+        ]
+        self.simulation.roadQueueManager.roadQueues[self] = in_queue_cars
+        self.simulation.log.batch_add_new_completed_vehicle([
+            [
+                car.id,
+                self.simulation.epoch,
+                car.timeIn,
+                self.simulation.current_timestep,
+                str(hash(self)),
+                car.vot,
+            ]
+            for car in completed_cars
+        ])
+        # print("NEW CALL", self.simulation.current_timestep, len(in_queue_cars))
+        arrived = False
+        # cumulative_etas = accumulate([r.currentETA for r in in_queue_cars])
+        n_cars_start = len(in_queue_cars)
+        if n_cars_start == 0:
+            return round(self.simulation.current_timestep + self.vdf(n_cars_start))
+        counted_etas = Counter([r.currentETA for r in in_queue_cars])
+        cum_count_eta = {ts: count for ts, count in zip(counted_etas.keys(), accumulate(counted_etas.values()) )}
+        cum_count_eta[self.simulation.current_timestep] = 0
+        projected_eta = [(ts, round(ts+self.vdf(n_cars_start - count))) for ts, count in cum_count_eta.items()]
 
-            while not arrived:
-                print(self, self.t_curr, projected_eta, travel_time)
-                if projected_eta > travel_time:
-                    arrived = True
-                    return self.simulation.current_timestep + projected_eta
-                else:
-                    projected_eta = self.vdf(adjusted_etas[projected_eta])
-                    projected_eta += 1
+        min_proj_eta = sorted(projected_eta, key=lambda x: x[1])[0][1]
 
-
-
-    # def __repr__(self):
-    #     return (
-    #         str(self.simulation.gym_get_specific_economic_cost(self)) + ", " + self.t0
-    #     )
+        return min_proj_eta
 
 
 class FreeRoad(DynamicRoad):

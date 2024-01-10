@@ -300,15 +300,16 @@ class Simulation:
             #     for road in self.toll_roads + self.free_roads
             # }
             road_travel_time = {
-                road: road.get_accurate_road_travel_time()
+                road: road.maintain_queue()
                 for road in self.toll_roads + self.free_roads
             }
+
             road_econom_cost = {
                 road: self.road_cost.get(road, 0)
                 for road in self.toll_roads + self.free_roads
             }
             # this is the hard bit, I want to generate and make the quantal process without a while loop
-            roadUtilityFunct = {
+            road_utility_funct = {
                 road: lambda x: (
                     -((x * road_travel_time[road]) + road_econom_cost[road])
                 )
@@ -322,7 +323,7 @@ class Simulation:
                         car.new_quantal_decision,
                         [[
                             (road, roadfn(car.vot))
-                            for road, roadfn in roadUtilityFunct.items()
+                            for road, roadfn in road_utility_funct.items()
                         ]]
                     )
                 )

@@ -36,13 +36,13 @@ class DQNWrapper:
         replay_size = int(timesteps * n_epochs * 0.9)
         replay_alpha0 = 0.6
         replay_beta0 = 0.4
-        self.replay_buffer = replay_buffers.PrioritizedReplayBuffer(
+        self.replay_buffer = replay_buffers.ReplayBuffer(
             # n_buf, alpha=0.6, beta0=0.4, betasteps=betasteps, num_steps=1
             replay_size,
-            alpha=replay_alpha0,
-            beta0=replay_beta0,
-            betasteps=betasteps,
-            num_steps=1,
+            # alpha=replay_alpha0,
+            # beta0=replay_beta0,
+            # betasteps=betasteps,
+            num_steps=sim.timesteps,
         )
 
         decay_timestep = int(timesteps * n_epochs * 0.9)
