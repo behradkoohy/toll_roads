@@ -13,9 +13,25 @@ class ResultProcessor:
         self.cur_out = self.conn_out.cursor()
         self.logdir = logdir
         if delete_table:
-            self.cur_out.execute("DROP TABLE IF EXISTS metaresult;")
+            self.cur_out.execute("DROP TABLE IF EXISTS metaresult_tratime;")
         self.cur_out.execute(
-            """CREATE TABLE IF NOT EXISTS metaresult (
+            """CREATE TABLE IF NOT EXISTS metaresult_tratime (
+                AGENT TEXT NOT NULL,
+                REPEAT INTEGER NOT NULL,
+                MIN REAL NOT NULL,
+                Q1 REAL NOT NULL,
+                MEDIAN REAL NOT NULL,
+                MEAN REAL NOT NULL,
+                Q3 REAL NOT NULL,
+                MAX REAL NOT NULL,
+                PRIMARY KEY (AGENT, REPEAT)
+            )
+            """
+        )
+        if delete_table:
+            self.cur_out.execute("DROP TABLE IF EXISTS metaresult_vottime;")
+        self.cur_out.execute(
+            """CREATE TABLE IF NOT EXISTS metaresult_vottime (
                 AGENT TEXT NOT NULL,
                 REPEAT INTEGER NOT NULL,
                 MIN REAL NOT NULL,
@@ -43,7 +59,6 @@ class ResultProcessor:
 
         self.cur_in.execute("SELECT MAX(EPOCH) FROM eval;")
         m_epoch = self.cur_in.fetchone()[0]
-        print(m_epoch)
         for x in trange(m_epoch + 1, unit="timesteps"):
             self.cur_in.execute(
                 "SELECT MAX((TS_OUT - TS_IN)*VEH_VOT) FROM eval WHERE EPOCH=?;", (x,)
@@ -67,9 +82,35 @@ class ResultProcessor:
             medians = np.median(ns)
             upqs = np.percentile(ns, 25)
             lwqs = np.percentile(ns, 75)
+            self.cur_out.execute(
+                "INSERT INTO metaresult_vottime (AGENT, REPEAT, MIN, Q1, MEDIAN, MEAN, Q3, MAX) VALUES (?,?,?,?,?,?,?,?)",
+                (agent, x, mins, lwqs, medians, avgs, upqs, maxs),
+            )
+            self.cur_in.execute(
+                "SELECT MAX(TS_OUT - TS_IN) FROM eval WHERE EPOCH=?;", (x,)
+            )
+            maxs = self.cur_in.fetchone()[0]
+
+            self.cur_in.execute(
+                "SELECT MIN(TS_OUT - TS_IN) FROM eval WHERE EPOCH=?;", (x,)
+            )
+            mins = self.cur_in.fetchone()[0]
+
+            self.cur_in.execute(
+                "SELECT AVG(TS_OUT - TS_IN) FROM eval WHERE EPOCH=?;", (x,)
+            )
+            avgs = self.cur_in.fetchone()[0]
+
+            self.cur_in.execute(
+                "SELECT (TS_OUT - TS_IN) FROM eval WHERE EPOCH=?;", (x,)
+            )
+            ns = self.cur_in.fetchall()
+            medians = np.median(ns)
+            upqs = np.percentile(ns, 25)
+            lwqs = np.percentile(ns, 75)
 
             self.cur_out.execute(
-                "INSERT INTO metaresult (AGENT, REPEAT, MIN, Q1, MEDIAN, MEAN, Q3, MAX) VALUES (?,?,?,?,?,?,?,?)",
+                "INSERT INTO metaresult_tratime (AGENT, REPEAT, MIN, Q1, MEDIAN, MEAN, Q3, MAX) VALUES (?,?,?,?,?,?,?,?)",
                 (agent, x, mins, lwqs, medians, avgs, upqs, maxs),
             )
             self.conn_out.commit()
@@ -85,10 +126,12 @@ class ResultProcessor:
             "SELECT MAX((TS_OUT - TS_IN)*VEH_VOT) FROM eval WHERE EPOCH=?;", (m_epoch,)
         )
         maxs = self.cur_in.fetchone()[0]
+
         self.cur_in.execute(
             "SELECT MIN((TS_OUT - TS_IN)*VEH_VOT) FROM eval WHERE EPOCH=?;", (m_epoch,)
         )
         mins = self.cur_in.fetchone()[0]
+
         self.cur_in.execute(
             "SELECT AVG((TS_OUT - TS_IN)*VEH_VOT) FROM eval WHERE EPOCH=?;", (m_epoch,)
         )
@@ -101,9 +144,35 @@ class ResultProcessor:
         medians = np.median(ns)
         upqs = np.percentile(ns, 25)
         lwqs = np.percentile(ns, 75)
+        self.cur_out.execute(
+            "INSERT INTO metaresult_vottime (AGENT, REPEAT, MIN, Q1, MEDIAN, MEAN, Q3, MAX) VALUES (?,?,?,?,?,?,?,?)",
+            (agent, repeat_id, mins, lwqs, medians, avgs, upqs, maxs),
+        )
+        self.cur_in.execute(
+            "SELECT MAX(TS_OUT - TS_IN) FROM eval WHERE EPOCH=?;", (m_epoch,)
+        )
+        maxs = self.cur_in.fetchone()[0]
+
+        self.cur_in.execute(
+            "SELECT MIN(TS_OUT - TS_IN) FROM eval WHERE EPOCH=?;", (m_epoch,)
+        )
+        mins = self.cur_in.fetchone()[0]
+
+        self.cur_in.execute(
+            "SELECT AVG(TS_OUT - TS_IN) FROM eval WHERE EPOCH=?;", (m_epoch,)
+        )
+        avgs = self.cur_in.fetchone()[0]
+
+        self.cur_in.execute(
+            "SELECT (TS_OUT - TS_IN) FROM eval WHERE EPOCH=?;", (m_epoch,)
+        )
+        ns = self.cur_in.fetchall()
+        medians = np.median(ns)
+        upqs = np.percentile(ns, 25)
+        lwqs = np.percentile(ns, 75)
 
         self.cur_out.execute(
-            "INSERT INTO metaresult (AGENT, REPEAT, MIN, Q1, MEDIAN, MEAN, Q3, MAX) VALUES (?,?,?,?,?,?,?,?)",
+            "INSERT INTO metaresult_tratime (AGENT, REPEAT, MIN, Q1, MEDIAN, MEAN, Q3, MAX) VALUES (?,?,?,?,?,?,?,?)",
             (agent, repeat_id, mins, lwqs, medians, avgs, upqs, maxs),
         )
         self.conn_out.commit()
@@ -156,7 +225,6 @@ class Benchmark:
                 log_dir=self.logdir,
                 fixed_capacity=self.capacity,
             )
-            print(20)
             self.processor.process_fixed_result(
                 agent, db_path=self.logdir + os.sep + "logging.db"
             )
@@ -175,6 +243,127 @@ class Benchmark:
             self.processor.process_adapt_result(
                 "DQN", n, db_path=self.logdir + os.sep + "logging.db"
             )
+
+    def capacity_experiment_runs(self, delete_table=True):
+        # self.conn_out = sqlite3.connect(self.logdir + os.sep + "results.db")
+        # self.cur_out = self.conn_out.cursor()
+        self.conn_out = self.processor.conn_out
+        self.cur_out = self.processor.cur_out
+        if delete_table:
+            self.cur_out.execute("DROP TABLE IF EXISTS capacity_runs_tratime;")
+            self.cur_out.execute("DROP TABLE IF EXISTS capacity_runs_vottime;")
+        self.cur_out.execute(
+            """CREATE TABLE IF NOT EXISTS capacity_runs_tratime (
+                AGENT TEXT NOT NULL,
+                CAPACITY INTEGER NOT NULL,
+                MIN REAL NOT NULL,
+                Q1 REAL NOT NULL,
+                MEDIAN REAL NOT NULL,
+                MEAN REAL NOT NULL,
+                Q3 REAL NOT NULL,
+                MAX REAL NOT NULL,
+                PRIMARY KEY (AGENT, CAPACITY)
+            )
+            """
+        )
+        self.cur_out.execute(
+            """CREATE TABLE IF NOT EXISTS capacity_runs_vottime (
+                AGENT TEXT NOT NULL,
+                CAPACITY INTEGER NOT NULL,
+                MIN REAL NOT NULL,
+                Q1 REAL NOT NULL,
+                MEDIAN REAL NOT NULL,
+                MEAN REAL NOT NULL,
+                Q3 REAL NOT NULL,
+                MAX REAL NOT NULL,
+                PRIMARY KEY (AGENT, CAPACITY)
+            )
+            """
+        )
+        for capacity in range(1,401):
+            print("CAPACITY", capacity, "------------------------------------")
+            self.cur_out.execute(
+                """CREATE TABLE IF NOT EXISTS metaresult_vottime (
+                    AGENT TEXT NOT NULL,
+                    REPEAT INTEGER NOT NULL,
+                    MIN REAL NOT NULL,
+                    Q1 REAL NOT NULL,
+                    MEDIAN REAL NOT NULL,
+                    MEAN REAL NOT NULL,
+                    Q3 REAL NOT NULL,
+                    MAX REAL NOT NULL,
+                    PRIMARY KEY (AGENT, REPEAT)
+                )
+                """
+            )
+            self.cur_out.execute(
+                """CREATE TABLE IF NOT EXISTS metaresult_tratime (
+                    AGENT TEXT NOT NULL,
+                    REPEAT INTEGER NOT NULL,
+                    MIN REAL NOT NULL,
+                    Q1 REAL NOT NULL,
+                    MEDIAN REAL NOT NULL,
+                    MEAN REAL NOT NULL,
+                    Q3 REAL NOT NULL,
+                    MAX REAL NOT NULL,
+                    PRIMARY KEY (AGENT, REPEAT)
+                )
+                """
+            )
+            fixed_agents = ["Random", "Fixed", "Free"]
+            for agent in fixed_agents:
+                sim = Simulation(
+                    self.n_cars,
+                    self.timesteps,
+                    n_epochs=5,
+                    agent=agent,
+                    n_toll_roads=self.n_tollroads,
+                    n_free_road=self.n_freeroads,
+                    log_dir=self.logdir,
+                    fixed_capacity=capacity,
+                )
+
+                self.processor.process_fixed_result(
+                    agent, db_path=self.logdir + os.sep + "logging.db"
+                )
+                self.cur_out.execute(
+                    """SELECT AGENT, MIN, Q1, MEDIAN, MEAN, Q3, MAX FROM metaresult_vottime;
+                    """
+                )
+                vots = self.cur_out.fetchall()
+                mins = np.mean([x[1] for x in vots])
+                lwqs = np.mean([x[5] for x in vots])
+                medians = np.mean([x[3] for x in vots])
+                avgs = np.mean([x[4] for x in vots])
+                upqs = np.mean([x[2] for x in vots])
+                maxs = np.mean([x[6] for x in vots])
+                self.cur_out.execute(
+                    """
+                INSERT INTO capacity_runs_vottime (AGENT, CAPACITY, MIN, Q1, MEDIAN, MEAN, Q3, MAX) VALUES (?,?,?,?,?,?,?,?)
+                """,
+                    ((agent, capacity, mins, lwqs, medians, avgs, upqs, maxs)),
+                )
+                self.cur_out.execute(
+                    """SELECT AGENT, MIN, Q1, MEDIAN, MEAN, Q3, MAX FROM metaresult_tratime;
+                    """
+                )
+                vots = self.cur_out.fetchall()
+                mins = np.mean([x[1] for x in vots])
+                lwqs = np.mean([x[5] for x in vots])
+                medians = np.mean([x[3] for x in vots])
+                avgs = np.mean([x[4] for x in vots])
+                upqs = np.mean([x[2] for x in vots])
+                maxs = np.mean([x[6] for x in vots])
+                self.cur_out.execute(
+                    """
+                INSERT INTO capacity_runs_tratime (AGENT, CAPACITY, MIN, Q1, MEDIAN, MEAN, Q3, MAX) VALUES (?,?,?,?,?,?,?,?)
+                """,
+                    ((agent, capacity, mins, lwqs, medians, avgs, upqs, maxs)),
+                )
+            self.cur_out.execute("DROP TABLE IF EXISTS metaresult_tratime;")
+            self.cur_out.execute("DROP TABLE IF EXISTS metaresult_vottime;")
+            self.conn_out.commit()
+
 
 
 if __name__ == "__main__":
@@ -197,4 +386,4 @@ if __name__ == "__main__":
     b = Benchmark(
         a.cars, a.timesteps, 1, a.tollroads, a.freeroads, a.logdir, a.capacity
     )
-    b.run()
+    b.capacity_experiment_runs()
