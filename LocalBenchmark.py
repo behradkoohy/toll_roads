@@ -234,7 +234,7 @@ class Benchmark:
                 self.n_cars,
                 self.timesteps,
                 agent="DQN",
-                n_epochs=10,
+                n_epochs=500,
                 n_toll_roads=self.n_tollroads,
                 n_free_road=self.n_freeroads,
                 log_dir=self.logdir,
@@ -368,9 +368,9 @@ class Benchmark:
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(prog="MMRP Simulation")
-    ap.add_argument("-C", "--cars", default=300, action="store", type=int)
+    ap.add_argument("-C", "--cars", default=1000, action="store", type=int)
     ap.add_argument("-T", "--timesteps", default=200, action="store", type=int)
-    ap.add_argument("-E", "--epochs", default=100, action="store", type=int)
+    ap.add_argument("-E", "--epochs", default=1000, action="store", type=int)
     ap.add_argument("-TR", "--tollroads", default=2, action="store", type=int)
     ap.add_argument("-FR", "--freeroads", default=0, action="store", type=int)
     ap.add_argument("-L", "--logdir", default="./", action="store", type=str)
@@ -381,9 +381,10 @@ if __name__ == "__main__":
     #     choices=[agent for agent in agent_configs],
     #     type=str,
     # )
-    ap.add_argument("-CP", "--capacity", default=100, action="store", type=int)
+    ap.add_argument("-CP", "--capacity", default=10, action="store", type=int)
     a = ap.parse_args()
     b = Benchmark(
-        a.cars, a.timesteps, 1, a.tollroads, a.freeroads, a.logdir, a.capacity
+        a.cars, a.timesteps, 5, a.tollroads, a.freeroads, a.logdir, a.capacity
     )
-    b.capacity_experiment_runs()
+    # b.capacity_experiment_runs()
+    b.run()

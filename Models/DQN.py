@@ -18,9 +18,9 @@ class DQNWrapper:
             nn.ReLU(),
             # nn.Linear(1024, 1024),
             # nn.ReLU(),
-            nn.Linear(256, 512),
-            nn.ReLU(),
-            nn.Linear(512, 256),
+            # nn.Linear(256, 512),
+            # nn.ReLU(),
+            # nn.Linear(512, 256),
             # nn.ReLU(),
             nn.Linear(256, 128),
             nn.ReLU(),
@@ -33,7 +33,7 @@ class DQNWrapper:
 
         # self.replay_buffer = replay_buffers.ReplayBuffer(n_buf)
         betasteps = timesteps / 50
-        replay_size = int(timesteps * n_epochs * 0.9)
+        replay_size = int(timesteps * n_epochs)
         replay_alpha0 = 0.6
         replay_beta0 = 0.4
         self.replay_buffer = replay_buffers.ReplayBuffer(
@@ -45,7 +45,7 @@ class DQNWrapper:
             num_steps=sim.timesteps,
         )
 
-        decay_timestep = int(timesteps * n_epochs * 0.9)
+        decay_timestep = int(timesteps * n_epochs)
         explr_start = 1.0
         explr_end = 0.01
         self.explorer = explorers.LinearDecayEpsilonGreedy(

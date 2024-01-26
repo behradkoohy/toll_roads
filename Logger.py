@@ -80,6 +80,8 @@ class Logging:
         # self.conn.commit()
 
     def batch_add_new_completed_vehicle(self, cars):
+        if cars != []:
+            pass
         self.cursor.executemany(
             """ INSERT INTO eval
             (ID, EPOCH, TS_IN, TS_OUT, ROUTE, VEH_VOT)
@@ -99,6 +101,9 @@ class Logging:
 
     def main(self):
         pass
+
+    def debug_commit(self):
+        self.conn.commit()
 
     def end(self):
         self.conn.commit()

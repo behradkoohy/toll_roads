@@ -63,7 +63,7 @@ class Car:
             print(x, int(lambd * x))
             raise OverflowError
 
-    def quantalify(self, r, rest, lambd=0.01):
+    def quantalify(self, r, rest, lambd=0.1):
         # breakpoint()
          
         return np.exp(lambd * r) / np.sum([np.exp(lambd * re) for re in rest], axis=-0)

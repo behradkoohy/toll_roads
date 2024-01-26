@@ -278,6 +278,7 @@ class Simulation:
         total_reward = defaultdict(int)
         self.current_timestep = 0
         while not self.roadQueueManager.isSimulationComplete():
+            # print([len(x) for x in self.roadQueueManager.roadQueues.values()])
             # First, we update the agents actions
             common_obs = self.toll_roads[0].get_common_obs()
             for road in self.toll_roads:
@@ -303,7 +304,7 @@ class Simulation:
                 road: road.maintain_queue()
                 for road in self.toll_roads + self.free_roads
             }
-
+            # print(self.current_timestep, {r: (len(self.roadQueueManager.roadQueues[r]), t-self.current_timestep )for r, t in road_travel_time.items()})
             road_econom_cost = {
                 road: self.road_cost.get(road, 0)
                 for road in self.toll_roads + self.free_roads
@@ -315,8 +316,6 @@ class Simulation:
                 )
                 for road in self.toll_roads + self.free_roads
             }
-            # TODO: go from the line above into a functioning simulator lol
-            # TODO: I think the key will be to use a loop atleast, currently missing one step and not sure what it is
             decisions = [
                 list(
                     map(
@@ -331,13 +330,14 @@ class Simulation:
             ]
 
             for decision, car in zip(decisions, self.arrived_vehicles):
-                # breakpoint()
                 tc = TravellingCar(
                     car,
                     hash(car),
                     self.current_timestep,
-                    self.current_timestep + road_travel_time[decision[0][0]],
-                    self.current_timestep + road_travel_time[decision[0][0]],
+                    # self.current_timestep + road_travel_time[decision[0][0]],
+                    # self.current_timestep + road_travel_time[decision[0][0]],
+                    road_travel_time[decision[0][0]],
+                    road_travel_time[decision[0][0]],
                     decision[0],
                     car.vot
                 )
